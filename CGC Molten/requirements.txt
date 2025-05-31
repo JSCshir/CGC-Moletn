@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sentence-transformers
+spacy
+PyMuPDF
+pandas
+tqdm
+torch
+langchain-ollama
+langchain-core
+numpy

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CGC Molten EPME Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+
+    :root {
+      --bg-color: #ffb37d;
+      --primary-color: #8fbff7;    
+      --secondary-color: #50e3c2;  
+      --text-color: #333333;
+      --input-bg: #8fbff7;
+      --input-border: #ffb37d;
+      --user-msg-bg: #d0e9ff;    
+      --bot-msg-bg: #d0e9ff;      
+    }
+    [data-theme="dark"] {
+      --bg-color: #000000;
+      --primary-color: #4a90e2;
+      --secondary-color: #50e3c2;
+      --text-color: #e0e0e0;
+      --input-bg: #000000;
+      --input-border: #4a90e2;
+      --user-msg-bg: #3a536b;      
+      --bot-msg-bg: #2e2e2e;      
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: var(--primary-color);
+      padding: 1em;
+      text-align: center;
+      font-size: 1.5em;
+      color: white;
+      position: relative;
+    }
+    .theme-toggle {
+      position: absolute;
+      right: 1em;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: rgb(255, 255, 255);
+      font-size: 1em;
+      cursor: pointer;
+    }
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1em;
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-message {
+      margin: 0.5em 0;
+      padding: 0.5em 1em;
+      border-radius: 15px;
+      max-width: 80%;
+      animation: fadeIn 0.3s ease;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .user-message {
+      background: var(--user-msg-bg);
+      color: var(--text-color);
+      align-self: flex-end;
+    }
+    .bot-message {
+      background: var(--bot-msg-bg);
+      color: var(--text-color);
+      align-self: flex-start;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .input-container {
+      display: flex;
+      padding: 1em;
+      border-top: 2px solid #4a90e2;
+      background: var(--input-bg);
+    }
+    .input-container input {
+      flex: 1;
+      padding: 10px;
+      border: 2px solid var(--input-border);
+      border-radius: 5px;
+      margin-right: 0.5em;
+      background: var(--input-bg);
+      color: var(--text-color);
+    }
+    .input-container button {
+      padding: 10px 20px;
+      border: none;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .input-container button:hover {
+      background: var(--secondary-color);
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: var(--primary-color);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    CGC Molten
+    <button class="theme-toggle" id="themeToggle">Toggle Theme</button>
+  </header>
+
+  <div class="chat-container" id="chatContainer">
+    <!-- Chat messages will appear here -->
+  </div>
+
+  <div class="input-container">
+    <input type="text" id="question" placeholder="Enter your question..." required>
+    <button id="sendButton">Send</button>
+  </div>
+
+  <script>
+    const chatContainer = document.getElementById('chatContainer');
+    const inputField = document.getElementById('question');
+    const sendButton = document.getElementById('sendButton');
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+    
+    const storedTheme = localStorage.getItem('theme') || 'light';
+    body.setAttribute('data-theme', storedTheme);
+    
+    themeToggle.addEventListener('click', () => {
+      const currentTheme = body.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      body.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
+    
+    function appendMessage(text, type) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('chat-message', type === 'user' ? 'user-message' : 'bot-message');
+      messageDiv.textContent = text;
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    function appendLoadingMessage() {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('chat-message', 'bot-message');
+      messageDiv.id = 'loadingMessage';
+      messageDiv.innerHTML = '<span class="spinner"></span><span>Loading...</span>';
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    function removeLoadingMessage() {
+      const loadingMessage = document.getElementById('loadingMessage');
+      if (loadingMessage) {
+        chatContainer.removeChild(loadingMessage);
+      }
+    }
+    
+    async function sendMessage() {
+      const question = inputField.value.trim();
+      if (!question) return;
+      
+      appendMessage(question, 'user');
+      inputField.value = '';
+      
+      appendLoadingMessage();
+      
+      try {
+        const res = await fetch('http://127.0.0.1:8000/query/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+        removeLoadingMessage();
+        appendMessage(`Answer: ${data.response}\nSource: ${data.source}`, 'bot');
+      } catch (error) {
+        removeLoadingMessage();
+        appendMessage("There was an error processing your request.", 'bot');
+        console.error('Error:', error);
+      }
+    }
+    
+    sendButton.addEventListener('click', sendMessage);
+    inputField.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
+
+
+<!-- alt + L, O-->
