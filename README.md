@@ -1,0 +1,2 @@
+# CGC-Moletn
+RAG Model 
